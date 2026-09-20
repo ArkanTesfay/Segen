@@ -11,8 +11,14 @@ import { isAuthMocked } from '@segen/auth/src/index';
 const PUBLIC_PATHS = ['/signin', '/signout', '/api/auth'];
 
 function isSignedIn(req: NextRequest): boolean {
-  // Real Cognito session is an HttpOnly NextAuth cookie.
-  if (req.cookies.get('next-auth.session-token') ?? req.cookies.get('__Secure-next-auth.session-token')) {
+  // Real Cognito session is an HttpOnly NextAuth cookie. When the Cognito
+  // tokens (id + access + refresh) push the session past the browser's 4KB
+  // cookie limit, NextAuth stores it in numbered chunks — `...session-token.0`,
+  // `.1`, … — so any chunk counts as signed in. Only checking the base name
+  // would make every signed-in request look anonymous and cause a redirect
+  // loop straight after a successful Cognito callback.
+  const prefixes = ['next-auth.session-token', '__Secure-next-auth.session-token'];
+  if (prefixes.some((p) => req.cookies.get(p) ?? req.cookies.get(`${p}.0`))) {
     return true;
   }
   // Demo fallback (only meaningful while Cognito env is absent).

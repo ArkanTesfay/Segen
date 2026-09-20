@@ -172,6 +172,14 @@ curl -H "Authorization: Bearer <id_token>" \
   Cognito session. `http://localhost:3000/signout` must stay in Allowed
   sign-out URLs (`scripts/cognito-fix.sh` keeps it registered).
 - **JWKS is cached 1h** in the Go verifier; key rotation triggers a refresh.
+- **Chunked session cookies**: Cognito's id + access + refresh tokens overflow the
+  4KB browser cookie limit, so NextAuth stores the session as numbered chunks
+  (`next-auth.session-token.0`, `.1`, …) instead of one cookie. Anything checking
+  sign-in status manually (e.g. `middleware.ts`) must treat any chunk as signed in —
+  checking only the base name makes every logged-in request look anonymous and causes
+  an infinite sign-in loop after the Cognito callback.
+- **`NEXTAUTH_DEBUG=true`** (env var on the dev command, not committed) is the switch
+  that makes NextAuth log the real token-exchange error instead of a bare 302.
 - **No client secret** is required if the client is public; if it is confidential
   (yours currently is — see section 2) then `COGNITO_WEB_CLIENT_SECRET` must be set
   in `apps/web/.env.local` only. The Go API never needs it.
