@@ -44,7 +44,9 @@ Cognito user -> ID token -> Go RequireAuth (JWKS RS256) -> /v1/me
 ### Verify after any auth change
 
 - `GET /v1/me` with a real Bearer ID token → `{"sub":...,"email":...}` (not 401)
-- `/watch/*` and `/my-list/*` redirect to Cognito when there is no session cookie
+- Signed-out users see only the sign-in page: every route except `/signin`,
+  `/signout`, and `/api/auth/*` redirects to `/signin`, which forwards straight
+  to the Cognito Hosted UI when there is no session cookie
 - `GET /api/auth/providers` lists the `cognito` provider
 
 
@@ -53,7 +55,7 @@ Cognito user -> ID token -> Go RequireAuth (JWKS RS256) -> /v1/me
 ```
 Browser -> NextAuth /api/auth/[...nextauth] -> Cognito OIDC (issuer discovery)
                      | sets next-auth.session-token cookie
-              middleware.ts gates /watch + /my-list
+              middleware.ts gates every route (allowlist: /signin, /signout, /api/auth)
                      | Bearer <id_token>
               Go RequireAuth -> JWKS RS256 verify -> claims in ctx
 ```

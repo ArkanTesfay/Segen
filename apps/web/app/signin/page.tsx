@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { isAuthMocked } from '@segen/auth/src/index';
 import SignInForm from './SignInForm';
+import CognitoBridge from './CognitoBridge';
 
 export default function SignInPage() {
   return (
@@ -9,7 +11,7 @@ export default function SignInPage() {
         <Link href="/" className="font-display text-2xl font-black tracking-[0.3em] text-segen">SEGEN</Link>
         <h1 className="mt-3 font-display text-3xl font-black">Welcome back</h1>
         <p className="mt-1 text-sm text-silk-muted">Silky black cinema, secured by AWS Cognito.</p>
-        <SignInForm />
+        {isAuthMocked() ? <SignInForm /> : <CognitoBridge />}
       </div>
     </main>
   );
