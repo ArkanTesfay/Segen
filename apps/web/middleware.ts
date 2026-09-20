@@ -8,7 +8,7 @@ import { isAuthMocked } from '@segen/auth/src/index';
  * `/api/auth` stays public because NextAuth's sign-in callback and the
  * sign-out POST need to work with no session.
  */
-const PUBLIC_PATHS = ['/signin', '/signout', '/api/auth'];
+const PUBLIC_PATHS = ['/signin', '/signout', '/api/auth', '/landing'];
 
 function isSignedIn(req: NextRequest): boolean {
   // Real Cognito session is an HttpOnly NextAuth cookie. When the Cognito
@@ -36,6 +36,21 @@ export function middleware(req: NextRequest) {
     url.pathname = '/';
     url.search = '';
     return NextResponse.redirect(url);
+  }
+
+  // Signed out: `/` is the public landing page — served by rewriting to
+  // /landing so the URL stays clean. This is also where /signout's
+  // "Back to home" leads, and what a first-time visitor sees.
+  if (!signedIn && (path === '/' || path === '/landing')) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/landing';
+    return NextResponse.rewrite(url);
+  }
+  // Signed in: /landing exists only for anonymous visitors — show the app home.
+  if (signedIn && path === '/landing') {
+    const url = req.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.rewrite(url);
   }
 
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));

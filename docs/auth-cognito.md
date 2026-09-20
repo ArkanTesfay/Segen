@@ -171,6 +171,11 @@ curl -H "Authorization: Bearer <id_token>" \
   dedicated sign-out page. Without it, "Sign in" would silently reuse the
   Cognito session. `http://localhost:3000/signout` must stay in Allowed
   sign-out URLs (`scripts/cognito-fix.sh` keeps it registered).
+- **Public landing page:** signed-out `/` is rewritten (URL unchanged) to
+  `/landing` — a marketing home with a public catalog preview (the Go API's
+  `/v1/titles` needs no auth). It is where first-time visitors land and where
+  `/signout`'s "Back to home" leads; signed-in users get the app home instead.
+
 - **JWKS is cached 1h** in the Go verifier; key rotation triggers a refresh.
 - **Chunked session cookies**: Cognito's id + access + refresh tokens overflow the
   4KB browser cookie limit, so NextAuth stores the session as numbered chunks

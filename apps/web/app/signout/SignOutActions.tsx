@@ -12,9 +12,12 @@ export default function SignOutActions() {
       >
         Sign in again
       </button>
-      <p className="text-center text-xs text-silk-faint">
-        <Link href="/" className="text-segen-glow">Back home</Link>
-      </p>
+      <Link
+        href="/"
+        className="block w-full rounded-full border border-white/20 bg-white/5 py-3 text-center text-sm font-semibold text-silk backdrop-blur transition hover:border-segen"
+      >
+        Back to home
+      </Link>
     </div>
   );
 }
