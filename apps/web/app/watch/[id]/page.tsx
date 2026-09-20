@@ -2,27 +2,37 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { authorizePlayback, getTitles, saveProgress } from '@segen/api-client/src/index';
 import { trackViewingEvent } from '@segen/analytics/src/index';
+import { apiTokenFrom } from '../../../lib/session';
 
 export default function WatchPage({ params }: { params: { id: string } }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState('Loading adaptive stream…');
   const [quality, setQuality] = useState('Auto');
+  const { data: session, status: sessionStatus } = useSession();
+  const token = apiTokenFrom(session);
 
   useEffect(() => {
+    // /v1/playback/* is authenticated: on a hard refresh the NextAuth session is
+    // still resolving, so wait for it before calling the Go API (else 401).
+    if (sessionStatus === 'loading') return;
     let player: { destroy: () => Promise<void> } | null = null;
     let cancelled = false;
+    let videoEl: HTMLVideoElement | null = null;
+    let onTime: (() => void) | null = null;
 
     async function init() {
       try {
         const titles = await getTitles();
         const meta = titles.find((t) => t.id === params.id) ?? titles[0];
-        const auth = await authorizePlayback(meta.id);
+        const auth = await authorizePlayback(meta.id, token);
         if (cancelled) return;
         trackViewingEvent({ type: 'play', titleId: meta.id, atSeconds: auth.resumeSeconds });
 
-        const video = videoRef.current;
+        videoEl = videoRef.current;
+        const video = videoEl;
         if (!video) return;
         video.currentTime = auth.resumeSeconds || 0;
 
@@ -47,8 +57,11 @@ export default function WatchPage({ params }: { params: { id: string } }) {
         setStatus(`Playing • ${meta.title}`);
         video.play().catch(() => setStatus(`Ready • ${meta.title} — press play`));
 
-        const onTime = () => {
-          saveProgress(meta.id, video.currentTime, video.duration || 0);
+        onTime = () => {
+          if (cancelled) return;
+          // Goes to Postgres through the Go API (throttled inside api-client) and
+          // always to localStorage so signed-out playback still resumes.
+          void saveProgress(meta.id, video.currentTime, video.duration || 0, token);
           if (Math.floor(video.currentTime) % 30 === 0) {
             trackViewingEvent({ type: 'progress', titleId: meta.id, atSeconds: Math.floor(video.currentTime), durationSeconds: Math.floor(video.duration || 0) });
           }
@@ -61,9 +74,10 @@ export default function WatchPage({ params }: { params: { id: string } }) {
     init();
     return () => {
       cancelled = true;
+      if (videoEl && onTime) videoEl.removeEventListener('timeupdate', onTime);
       player?.destroy().catch(() => undefined);
     };
-  }, [params.id]);
+  }, [params.id, sessionStatus, token]);
 
   return (
     <main className="min-h-screen bg-ink text-silk">

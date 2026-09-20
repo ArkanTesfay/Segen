@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -21,6 +22,8 @@ func RequireAuth(v *Verifier, next http.Handler) http.Handler {
 		}
 		claims, err := v.Verify(tok)
 		if err != nil {
+			// Keep the client-facing body generic; log the real reason for ops.
+			log.Printf("auth: request rejected: %v", err)
 			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 			return
 		}

@@ -8,39 +8,44 @@
 > App client: **"My web app" — `1fifo3bclseh2uqr0vkbf8e7pt`**
 > Hosted UI: `https://us-east-2dzypvvqdn.auth.us-east-2.amazoncognito.com` (verified live)
 
-## Status: Cognito is wired, 2 console fixes outstanding
+## Status: WORKING ✅ (web sign-up + sign-in verified)
 
-`apps/web/.env.local` and `apps/api/.env` are filled in. `/api/auth/providers`
-returns the `cognito` provider and `/watch/1` redirects to the Cognito sign-in
-route. Two things block a successful login — both confirmed by probing the live
-endpoints:
+Both sign-up and sign-in complete successfully through the Cognito Hosted UI.
+What it took to get there:
 
-| # | Symptom from probe | Cause | Fix |
-|---|---|---|---|
-| 1 | `error=redirect_mismatch` on `/oauth2/authorize` | No callback URL registered on client `1fifo3bclseh2uqr0vkbf8e7pt` | Run `scripts/cognito-fix.sh` (or section 1) |
-| 2 | `{"error":"invalid_client","error_description":"invalid_client_secret"}` on `/oauth2/token` | Client **has a secret**, but `COGNITO_WEB_CLIENT_SECRET` is empty | Same script fetches it and writes it into `.env.local` (or section 2) |
+| Symptom | Cause | Resolution |
+|---|---|---|
+| `error=redirect_mismatch` on `/oauth2/authorize` | Callback URL not registered on client `1fifo3bclseh2uqr0vkbf8e7pt` | `scripts/cognito-fix.sh` registered it, plus sign-out URL, `code` grant, scopes, and `AllowedOAuthFlowsUserPoolClient=true` |
+| `{"error":"invalid_client","error_description":"invalid_client_secret"}` on `/oauth2/token` | Client is **confidential** but `COGNITO_WEB_CLIENT_SECRET` was empty | Same script fetched the secret and wrote it into `apps/web/.env.local` |
 
-### One command that fixes both
+Both show up in a browser as the generic Hosted UI error **"An error was
+encountered with the requested page."** Cognito does not say which setting is
+wrong, so when that appears, inspect the client config first (sections 1 and 2).
+
+### Re-applying (new machine, new pool, rotated secret)
+
+Both scripts are idempotent:
 
 ```bash
-aws login                              # SSO session (interactive, you must run this)
-./scripts/cognito-fix.sh               # registers callbacks + grabs the secret
-./scripts/cognito-test-login.sh        # creates a test user, mints a real token, hits the Go API
-cd apps/web && bun run dev             # restart so the new env is picked up
+aws login                          # SSO session (interactive)
+bash scripts/cognito-fix.sh        # callbacks + client secret + auth flows
+bash scripts/cognito-test-login.sh # proves the token chain without a browser
+cd apps/web && bun run dev         # restart so env changes take effect
 ```
 
-`cognito-fix.sh` round-trips `describe-user-pool-client` → `update-user-pool-client
---cli-input-json`, so **no other client setting is lost**, and it is safe to re-run.
-`cognito-test-login.sh` proves the whole chain without a browser:
+`cognito-fix.sh` round-trips `describe-user-pool-client` →
+`update-user-pool-client --cli-input-json`, so **no other client setting is lost**.
+`cognito-test-login.sh` validates:
 
 ```
 Cognito user -> ID token -> Go RequireAuth (JWKS RS256) -> /v1/me
 ```
 
-### If you prefer the console instead
+### Verify after any auth change
 
-- **Section 1** registers the callback URLs.
-- **Section 2** gets the secret (or switches to a public client).
+- `GET /v1/me` with a real Bearer ID token → `{"sub":...,"email":...}` (not 401)
+- `/watch/*` and `/my-list/*` redirect to Cognito when there is no session cookie
+- `GET /api/auth/providers` lists the `cognito` provider
 
 
 ## Where Cognito sits in the flow

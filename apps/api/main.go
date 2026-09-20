@@ -82,14 +82,14 @@ func main() {
 	protected := http.NewServeMux()
 	protected.HandleFunc("/v1/me", func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := auth.ClaimsFrom(r.Context())
-		writeJSON(w, map[string]string{"sub": claims.Sub, "email": claims.Email})
+		writeJSON(w, map[string]string{"sub": claims.Subject, "email": claims.Email})
 	})
 	protected.HandleFunc("/v1/playback/authorize", func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := auth.ClaimsFrom(r.Context())
 		titleID := r.URL.Query().Get("titleId")
 		resume := 0
 		if sqlDB != nil && titleID != "" {
-			if p, err := playback.GetProgress(r.Context(), sqlDB, claims.Sub, titleID); err == nil {
+			if p, err := playback.GetProgress(r.Context(), sqlDB, claims.Subject, titleID); err == nil {
 				resume = p.WatchedSeconds
 			}
 		}
@@ -103,7 +103,7 @@ func main() {
 	protected.HandleFunc("/v1/progress", func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := auth.ClaimsFrom(r.Context())
 		if r.Method == http.MethodGet {
-			out, _ := playback.ContinueWatching(r.Context(), sqlDB, claims.Sub)
+			out, _ := playback.ContinueWatching(r.Context(), sqlDB, claims.Subject)
 			writeJSON(w, out)
 			return
 		}
@@ -116,7 +116,7 @@ func main() {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		p, err := playback.SaveProgress(r.Context(), sqlDB, claims.Sub, claims.Email, body.TitleID, body.Watched, body.Duration)
+		p, err := playback.SaveProgress(r.Context(), sqlDB, claims.Subject, claims.Email, body.TitleID, body.Watched, body.Duration)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -126,7 +126,7 @@ func main() {
 	protected.HandleFunc("/v1/favorites", func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := auth.ClaimsFrom(r.Context())
 		if r.Method == http.MethodGet {
-			out, _ := playback.ListFavorites(r.Context(), sqlDB, claims.Sub)
+			out, _ := playback.ListFavorites(r.Context(), sqlDB, claims.Subject)
 			writeJSON(w, out)
 			return
 		}
@@ -138,7 +138,7 @@ func main() {
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			titleID = body.TitleID
 		}
-		added, err := playback.ToggleFavorite(r.Context(), sqlDB, claims.Sub, claims.Email, titleID)
+		added, err := playback.ToggleFavorite(r.Context(), sqlDB, claims.Subject, claims.Email, titleID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

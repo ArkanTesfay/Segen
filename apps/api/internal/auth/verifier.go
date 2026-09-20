@@ -126,10 +126,12 @@ func (v *Verifier) refresh() error {
 
 // Claims returned to handlers.
 type Claims struct {
-	Sub   string `json:"sub"`
 	Email string `json:"email"`
 	// Cognito access tokens carry `client_id` instead of `aud`.
 	ClientID string `json:"client_id"`
+	// `sub` is read via the embedded RegisteredClaims.Subject. Do NOT add
+	// another field tagged `json:"sub"`: encoding/json resolves tag collisions
+	// in favor of the shallower field, which would leave Subject empty.
 	jwt.RegisteredClaims
 }
 
