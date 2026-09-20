@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --silk-black: #0a0a0b;
+  --silk-white: #f9f7f1;
+  --silk-red: #e50914;
+}
+
+html, body {
+  background: var(--silk-black);
+  color: var(--silk-white);
+}
+
+::selection { background: #e50914; color: #f9f7f1; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.hero-fade {
+  background: linear-gradient(to top, #0a0a0b 4%, rgba(10,10,11,0.55) 38%, rgba(10,10,11,0.05) 70%, rgba(10,10,11,0.25) 100%);
+}
+
+.card-shine {
+  background: linear-gradient(135deg, rgba(249,247,241,0.14), rgba(249,247,241,0.02) 40%, rgba(229,9,20,0.22));
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #1c1c20;
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(249,247,241,0.12), rgba(229,9,20,0.12), transparent);
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+.row-scroll { scroll-behavior: smooth; }

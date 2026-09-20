@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/lib/*": ["./lib/*"],
+      "@segen/auth": ["../../packages/auth/src"],
+      "@segen/design-system": ["../../packages/design-system/src"],
+      "@segen/types": ["../../packages/types/src"],
+      "@segen/api-client": ["../../packages/api-client/src"],
+      "@segen/analytics": ["../../packages/analytics/src"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next-dev/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
