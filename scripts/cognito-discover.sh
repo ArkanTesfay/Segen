@@ -5,6 +5,10 @@
 # Usage: ./scripts/cognito-discover.sh [USER_POOL_ID] [REGION]
 set -euo pipefail
 
+# AWS CLI v2 pages long output through `less` when stdout is a TTY -> would hang.
+export AWS_PAGER=""
+export AWS_CLI_AUTO_PROMPT=off
+
 POOL_ID="${1:-us-east-2_DzYpvvqdN}"
 REGION="${2:-us-east-2}"
 

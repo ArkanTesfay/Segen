@@ -12,13 +12,36 @@
 
 `apps/web/.env.local` and `apps/api/.env` are filled in. `/api/auth/providers`
 returns the `cognito` provider and `/watch/1` redirects to the Cognito sign-in
-route. Two things in the Cognito console still block a successful login — both
-confirmed by probing the live endpoints:
+route. Two things block a successful login — both confirmed by probing the live
+endpoints:
 
 | # | Symptom from probe | Cause | Fix |
 |---|---|---|---|
-| 1 | `error=redirect_mismatch` on `/oauth2/authorize` | No callback URL registered on client `1fifo3bclseh2uqr0vkbf8e7pt` | Add callback + sign-out URLs (section 1) |
-| 2 | `{"error":"invalid_client","error_description":"invalid_client_secret"}` on `/oauth2/token` | Client **has a secret**, but `COGNITO_WEB_CLIENT_SECRET` is empty | Paste the secret into `.env.local`, **or** switch the client to public (section 2) |
+| 1 | `error=redirect_mismatch` on `/oauth2/authorize` | No callback URL registered on client `1fifo3bclseh2uqr0vkbf8e7pt` | Run `scripts/cognito-fix.sh` (or section 1) |
+| 2 | `{"error":"invalid_client","error_description":"invalid_client_secret"}` on `/oauth2/token` | Client **has a secret**, but `COGNITO_WEB_CLIENT_SECRET` is empty | Same script fetches it and writes it into `.env.local` (or section 2) |
+
+### One command that fixes both
+
+```bash
+aws login                              # SSO session (interactive, you must run this)
+./scripts/cognito-fix.sh               # registers callbacks + grabs the secret
+./scripts/cognito-test-login.sh        # creates a test user, mints a real token, hits the Go API
+cd apps/web && bun run dev             # restart so the new env is picked up
+```
+
+`cognito-fix.sh` round-trips `describe-user-pool-client` → `update-user-pool-client
+--cli-input-json`, so **no other client setting is lost**, and it is safe to re-run.
+`cognito-test-login.sh` proves the whole chain without a browser:
+
+```
+Cognito user -> ID token -> Go RequireAuth (JWKS RS256) -> /v1/me
+```
+
+### If you prefer the console instead
+
+- **Section 1** registers the callback URLs.
+- **Section 2** gets the secret (or switches to a public client).
+
 
 ## Where Cognito sits in the flow
 
@@ -64,10 +87,15 @@ aws cognito-idp describe-user-pool-client \
 Paste into `apps/web/.env.local` → `COGNITO_WEB_CLIENT_SECRET=<value>`
 (web only — the Go API just verifies JWTs and never needs the secret).
 
-**Option B — make it public.** App client → Edit → **Don't generate a client
-secret** → save. Then leave `COGNITO_WEB_CLIENT_SECRET` empty. Simpler, slightly
-less protected; the code flow still works because the redirect is code-based.
+**Option B — use a public client instead.** Cognito does **not** let you remove a
+secret from an existing app client, so this means creating a new one:
+App clients → **Create app client** → App type **Public client** (no secret) →
+same callback/sign-out URLs and the same grant/scopes as section 1 → then point
+`COGNITO_WEB_CLIENT_ID` (and `NEXT_PUBLIC_COGNITO_CLIENT_ID`) at the new id and
+leave `COGNITO_WEB_CLIENT_SECRET` empty. This is exactly what the CDK
+`SegenAuth` stack defines (`generateSecret: false`).
 
+## 3. Auto-discover instead of clicking
 
 After `aws login`, this prints the ready-to-paste env block and shows whether the
 callback URLs are configured correctly:
