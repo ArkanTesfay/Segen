@@ -74,6 +74,9 @@ for k in ("ClientSecret", "CreationDate", "LastModifiedDate"):
 cbs, los = list(c.get("CallbackURLs") or []), list(c.get("LogoutURLs") or [])
 if callback not in cbs: cbs.append(callback)
 if logout not in los:   los.append(logout)
+# the navbar sign-out flow lands on /signout, so it must be an allowed logout URL too
+logout_page = logout.rstrip("/") + "/signout"
+if logout_page not in los: los.append(logout_page)
 c["CallbackURLs"], c["LogoutURLs"] = cbs, los
 
 flows = set(c.get("AllowedOAuthFlows") or []) | {"code"}

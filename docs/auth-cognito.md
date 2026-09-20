@@ -70,7 +70,7 @@ App client **`My web app` (`1fifo3bclseh2uqr0vkbf8e7pt`)** → **Edit** →
 | Setting | Value |
 |---|---|
 | Allowed callback URLs | `http://localhost:3000/api/auth/callback/cognito` |
-| Allowed sign-out URLs | `http://localhost:3000` |
+| Allowed sign-out URLs | `http://localhost:3000`, `http://localhost:3000/signout` |
 | OAuth 2.0 grant types | ✅ **Authorization code grant** |
 | OpenID Connect scopes | ✅ `openid`, `profile`, `email` |
 
@@ -163,6 +163,12 @@ curl -H "Authorization: Bearer <id_token>" \
 - **ID vs access token:** ID tokens carry `aud` = client id; access tokens carry
   `client_id` and no `aud`. `verifier.go` accepts either but always requires a
   match, so tokens minted for another app client in this pool are rejected.
+- **Sign-out:** NextAuth `signOut()` clears only the NextAuth cookie, so the
+  navbar also redirects the browser to the Hosted UI `/logout` endpoint with
+  `logout_uri` = `/signout` — that ends the Cognito session AND lands on the
+  dedicated sign-out page. Without it, "Sign in" would silently reuse the
+  Cognito session. `http://localhost:3000/signout` must stay in Allowed
+  sign-out URLs (`scripts/cognito-fix.sh` keeps it registered).
 - **JWKS is cached 1h** in the Go verifier; key rotation triggers a refresh.
 - **No client secret** is required if the client is public; if it is confidential
   (yours currently is — see section 2) then `COGNITO_WEB_CLIENT_SECRET` must be set

@@ -21,7 +21,7 @@ function DemoButtons() {
           document.cookie = 'segen-demo-user=; path=/; max-age=0; samesite=lax';
           try { window.localStorage.removeItem('segen-demo-user'); } catch { /* noop */ }
           setSignedIn(false);
-          window.location.href = '/';
+          window.location.href = '/signout';
         }}
         className="rounded-full border border-white/15 px-4 py-2 text-sm transition hover:border-segen"
       >
@@ -43,6 +43,26 @@ function DemoButtons() {
 
 function CognitoButtons() {
   const { data: session, status } = useSession();
+
+  /**
+   * NextAuth signOut() only clears the NextAuth cookie — the Cognito Hosted UI
+   * session would survive, so the next "Sign in" would silently re-login. End
+   * both: clear the cookie, then hit the Hosted UI /logout endpoint whose
+   * logout_uri lands on /signout. logout_uri must be in the client's
+   * "Allowed sign-out URLs" (scripts/cognito-fix.sh registers it).
+   */
+  async function handleSignOut() {
+    await signOut({ redirect: false });
+    const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
+    const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+    if (domain && clientId) {
+      const logoutUri = encodeURIComponent(`${window.location.origin}/signout`);
+      window.location.href = `${domain}/logout?client_id=${clientId}&logout_uri=${logoutUri}`;
+    } else {
+      window.location.href = '/signout';
+    }
+  }
+
   if (status === 'loading') {
     return <div className="skeleton-shimmer h-9 w-24 rounded-full" />;
   }
@@ -52,10 +72,7 @@ function CognitoButtons() {
         <span className="hidden max-w-[140px] truncate text-sm text-silk-muted sm:block">
           {session.user.email ?? session.user.name}
         </span>
-        <button
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="rounded-full border border-white/15 px-4 py-2 text-sm transition hover:border-segen"
-        >
+        <button onClick={handleSignOut} className="rounded-full border border-white/15 px-4 py-2 text-sm transition hover:border-segen">
           Sign out
         </button>
       </div>
